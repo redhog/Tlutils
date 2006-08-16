@@ -50,6 +50,6 @@ done < "$WORKDIR/locals.uncached"
 rm -rf "$WORKDIR"
 
 echo "Mirroring archive contents..."
-for ARCHIVE in $(ls $TLADD_CLIENTPATH; ls $TLADD_CACHEPATH | sed -e "s+$+-SOURCE+g"); do
+for ARCHIVE in $(ls $TLADD_CLIENTPATH; ls $TLADD_CACHEPATH); do
  tla archive-mirror $ARCHIVE;
 done
