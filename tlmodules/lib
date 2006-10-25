@@ -1,0 +1,60 @@
+get () { eval echo \$$1; }
+
+tla_archives () {
+ tla archives |
+  while read arch; read loc; do
+   echo $arch $loc;
+  done
+}
+
+tla_archives_local () {
+ tla_archives | grep -v MIRROR | grep -v SOURCE |
+  while read arch loc; do
+   if ! [ -e $loc/=meta-info/mirror ]; then
+    echo $arch $loc;
+   fi
+  done
+}
+
+tla_archives_remote () {
+ tla_archives | grep -v MIRROR | grep -v SOURCE |
+  while read arch loc; do
+   if [ -e $loc/=meta-info/mirror ]; then
+    echo $arch $loc;
+   fi
+  done
+}
+
+tla_archives_remote_sources () {
+ tla_archives | grep SOURCE
+}
+
+tla_archives_local_mirrors () {
+ tla_archives | grep MIRROR
+}
+
+tlutils_ls () {
+ if echo $1 | grep "sftp://" > /dev/null; then
+  echo $1 |
+   {
+    IFS=/ read proto dummy addr path;
+    ssh $addr "ls $path"
+   }
+ else
+  ls $1
+ fi
+}
+
+tlutils_viewarch_register () {
+ archive archviewpath
+ if echo $1 | grep "sftp://" > /dev/null; then
+  echo $1 |
+   {
+    IFS=/ read proto dummy addr path;
+    ssh $addr "HOME=\"$2\" tla register-archive $(basename $path) \"$path\""
+   }
+ else
+  HOME="$2" tla register-archive $(basename $path) "$path"
+ fi
+}
+

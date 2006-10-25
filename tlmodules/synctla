@@ -1,0 +1,60 @@
+tla_sync_cluster () {
+ workdir="$(mktemp -d)"
+
+ echo "Getting current listings..."
+ ls $(get tlutils_$1_local) | sort > "$workdir/locals"
+ tlutils_ls $(get tlutils_$1_remote) | sort > "$workdir/remotes"
+ ls $(get tlutils_$1_remote_cache) 2> /dev/null | sort > "$workdir/cached"
+
+ diff "$workdir/remotes" "$workdir/locals" | grep -e "^<" | sed -e "s+< ++g" > "$workdir/remotes.nonlocal"
+ diff "$workdir/remotes.nonlocal" "$workdir/cached" | grep -e "^<" | sed -e "s+< ++g" > "$workdir/remotes.uncached"
+ diff "$workdir/locals" "$workdir/remotes" | grep -e "^<" | sed -e "s+< ++g" > "$workdir/locals.uncached"
+
+ if [ "$tlutils_dry_run" ]; then
+  echo "Remote archives to mirror locally:"
+  cat "$workdir/remotes.uncached"
+  echo
+  echo "Local archives to mirror remotely:"
+  cat "$workdir/locals.uncached"
+ else
+
+  mkdir -p $(get tlutils_$1_remote_cache)
+
+  echo "Mirroring remote archives locally..."
+  while read remote; do
+   echo " $remote $remote-SOURCE-$1 $(get tlutils_$1_remote_cache)/$remote"
+   tla register-archive $remote-SOURCE-$1 $(get tlutils_$1_remote)/$remote
+   tla make-archive --mirror-from $remote-SOURCE-$1 $(get tlutils_$1_remote_cache)/$remote
+  done < "$workdir/remotes.uncached"
+
+  echo "Mirroring local archives remotely..."
+  while read local; do
+   echo " $local $local-MIRROR-$1 $(get tlutils_$1_remote)/$local"
+   tla make-archive --mirror $local $local-MIRROR-$1 $(get tlutils_$1_remote)/$local
+   if  [ "$(get tlutils_$1_viewarch)" ]; then
+    tlutils_viewarch_register$(get tlutils_$1_remote)/$local $(get tlutils_$1_viewarch)
+   fi
+  done < "$workdir/locals.uncached"
+
+  rm -rf "$workdir"
+
+  echo "Mirroring content of local archives remotely..."
+  for archive in $(ls $(get tlutils_$1_local)); do
+   echo " $archive -> $archive-MIRROR-$1"
+   tla archive-mirror $archive $archive-MIRROR-$1;
+  done
+
+  echo "Mirroring content of remote archives locally..."
+  for archive in $(ls $(get tlutils_$1_remote_cache)); do
+   echo " $archive-SOURCE-$1 -> $archive"
+   tla archive-mirror $archive-SOURCE-$1 $archive;
+  done
+ fi
+}
+
+tla_sync () {
+ for cluster in $tlutils_clusters; do
+  echo "Syncing cluster $cluster..."
+  tla_sync_cluster $cluster
+ done
+}

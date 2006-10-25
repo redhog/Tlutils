@@ -1,0 +1,9 @@
+#! /bin/bash
+
+. ~/.tlutils/config
+. ~/sys/lib/tlutils/lib
+. ~/sys/lib/tlutils/synctla
+
+if [ "$1" ]; then
+ "$@"
+fi
